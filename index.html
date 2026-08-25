@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>判定3面サイコロ</title>
+    <title>リアル立体3面サイコロ</title>
     <style>
         /* --- 全体のレイアウト --- */
         body {
@@ -33,7 +33,8 @@
             height: 160px;
             position: relative;
             transform-style: preserve-3d;
-            transition: transform 1s ease-out;
+            /* 縦横の回転をなめらかに変化させる */
+            transition: transform 2s cubic-bezier(0.15, 0.9, 0.2, 1);
             margin-bottom: 50px;
         }
 
@@ -60,7 +61,7 @@
             text-align: center;
         }
 
-        /* --- 各面のデザインと色 --- */
+        /* --- 各面のデザインと色（三角柱の3面配置） --- */
         .face-1 { 
             background-color: #e74c3c; /* 赤：トラブル */
             color: white;
@@ -148,7 +149,6 @@
         const rollButton = document.getElementById('rollButton');
         const resultText = document.getElementById('resultText');
 
-        // 結果のテキストデータ
         const outcomes = {
             1: "評価-1 (トラブル)",
             2: "評価±0 (トラブル)",
@@ -161,23 +161,31 @@
             rollButton.disabled = true;
             resultText.textContent = "運命を判定中...";
 
-            // 1〜3のランダム
+            // 1〜3のランダムな目
             const result = Math.floor(Math.random() * 3) + 1;
 
-            const baseRotations = 5; 
+            // 縦回転(X軸)は「360度の倍数（＝必ず元の真直ぐな向きに戻る）」に設定することで逆さまを防ぎます！
+            const extraXRotations = (Math.floor(Math.random() * 3) + 3) * 360; // 3〜5回転分の縦ゴロゴロ
+
+            // 横回転(Y軸)は目的の面が正面を向く角度に調整
+            const baseYRotations = 5; // 5回転分の横ゴロゴロ
             const angleMap = {
                 1: 0,
                 2: -120,
                 3: -240
             };
             
-            const finalAngle = (baseRotations * 360) + angleMap[result];
-            diceContainer.style.transform = `rotateY(${finalAngle}deg)`;
+            const finalYAngle = (baseYRotations * 360) + angleMap[result];
+            const finalXAngle = extraXRotations; // 360の倍数なので最終的に必ず真っ直ぐに戻る
 
+            // 縦と横を同時にダイナミックに回転させる
+            diceContainer.style.transform = `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
+
+            // 回転時間（2秒）に合わせて結果を表示
             setTimeout(() => {
                 resultText.textContent = `結果：${outcomes[result]}`;
                 rollButton.disabled = false;
-            }, 1000);
+            }, 2000);
         }
     </script>
 </body>
