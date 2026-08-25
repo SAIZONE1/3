@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3面サイコロ アプリ</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        .dice-container {
+            perspective: 1000px;
+            width: 150px;
+            height: 150px;
+            margin-bottom: 30px;
+        }
+        .dice {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s ease-out;
+        }
+        .face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #333;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            backface-visibility: hidden;
+        }
+        .face .label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        .rolling {
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotateX(0deg) rotateY(0deg); }
+            100% { transform: rotateX(360deg) rotateY(360deg); }
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background 0.2s;
+        }
+        button:active {
+            background-color: #0056b3;
+            transform: scale(0.98);
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+            min-height: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>3面サイコロ（トラブル・回避）</h1>
+
+    <div class="dice-container">
+        <div class="dice" id="dice">
+            <div class="face" id="face-display">
+                <span id="dice-text">?</span>
+                <span class="label" id="dice-label">待機中</span>
+            </div>
+        </div>
+    </div>
+
+    <button id="roll-btn" onclick="rollDice()">サイコロを振る！</button>
+    <div id="result"></div>
+
+    <script>
+        const faces = [
+            { value: "-1", label: "(トラブル)" },
+            { value: "±0", label: "(トラブル)" },
+            { value: "+1", label: "(回避)" }
+        ];
+
+        function rollDice() {
+            const dice = document.getElementById("dice");
+            const diceText = document.getElementById("dice-text");
+            const diceLabel = document.getElementById("dice-label");
+            const resultDiv = document.getElementById("result");
+            const btn = document.getElementById("roll-btn");
+
+            btn.disabled = true;
+            resultDiv.textContent = "コロコロコロ…";
+            dice.classList.add("rolling");
+
+            let interval = setInterval(() => {
+                const randomFace = faces[Math.floor(Math.random() * faces.length)];
+                diceText.textContent = randomFace.value;
+                diceLabel.textContent = randomFace.label;
+            }, 80);
+
+            setTimeout(() => {
+                clearInterval(interval);
+                dice.classList.remove("rolling");
+
+                const finalFace = faces[Math.floor(Math.random() * faces.length)];
+                diceText.textContent = finalFace.value;
+                diceLabel.textContent = finalFace.label;
+
+                resultDiv.textContent = `結果： ${finalFace.value} ${finalFace.label}`;
+                btn.disabled = false;
+            }, 800);
+        }
+    </script>
+</body>
+</html>
