@@ -2,140 +2,182 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3面サイコロ アプリ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>判定3面サイコロ</title>
     <style>
+        /* --- 全体のレイアウト --- */
         body {
+            margin: 0;
+            padding: 0;
+            background-color: #2c3e50;
+            color: white;
             font-family: sans-serif;
-            background-color: #f0f2f5;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             height: 100vh;
-            margin: 0;
-        }
-        h1 {
-            color: #333;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-        }
-        .dice-container {
+            overflow: hidden;
             perspective: 1000px;
-            width: 150px;
-            height: 150px;
-            margin-bottom: 30px;
         }
-        .dice {
-            width: 100%;
-            height: 100%;
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* --- 3Dサイコロ（三角柱）のコンテナ --- */
+        .dice-container {
+            width: 220px;
+            height: 160px;
             position: relative;
             transform-style: preserve-3d;
-            transition: transform 0.8s ease-out;
+            transition: transform 1s ease-out;
+            margin-bottom: 50px;
         }
+
+        /* --- 三角柱の側面（共通設定） --- */
         .face {
             position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 2px solid #333;
+            border-radius: 10px;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
-            border: 3px solid #333;
-            border-radius: 15px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            background: white;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            backface-visibility: hidden;
-        }
-        .face .label {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 5px;
-        }
-        .rolling {
-            animation: spin 0.6s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotateX(0deg) rotateY(0deg); }
-            100% { transform: rotateX(360deg) rotateY(360deg); }
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 1.1rem;
-            border-radius: 25px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: background 0.2s;
-        }
-        button:active {
-            background-color: #0056b3;
-            transform: scale(0.98);
-        }
-        #result {
-            margin-top: 20px;
-            font-size: 1.3rem;
+            align-items: center;
             font-weight: bold;
             color: #333;
-            min-height: 40px;
+            backface-visibility: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* --- 各面のデザインと色 --- */
+        .face-1 { 
+            background-color: #e74c3c; /* 赤：トラブル */
+            color: white;
+            transform: rotateY(0deg) translateZ(95px);
+        }
+        .face-2 { 
+            background-color: #f39c12; /* オレンジ：±0トラブル */
+            color: white;
+            transform: rotateY(120deg) translateZ(95px);
+        }
+        .face-3 { 
+            background-color: #2ecc71; /* 緑：回避 */
+            color: white;
+            transform: rotateY(240deg) translateZ(95px);
+        }
+
+        .eval-title {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+        }
+
+        .eval-desc {
+            font-size: 1.1rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        /* --- ボタン --- */
+        #rollButton {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        #rollButton:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        #rollButton:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* --- 結果表示エリア --- */
+        #resultText {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            height: 1.5rem;
         }
     </style>
 </head>
 <body>
 
-    <h1>3面サイコロ（トラブル・回避）</h1>
+    <h1>運命の判定</h1>
 
-    <div class="dice-container">
-        <div class="dice" id="dice">
-            <div class="face" id="face-display">
-                <span id="dice-text">?</span>
-                <span class="label" id="dice-label">待機中</span>
-            </div>
+    <!-- 3Dサイコロの構造（3面） -->
+    <div class="dice-container" id="diceContainer">
+        <div class="face face-1">
+            <div class="eval-title">評価-1</div>
+            <div class="eval-desc">トラブル</div>
+        </div>
+        <div class="face face-2">
+            <div class="eval-title">評価±0</div>
+            <div class="eval-desc">トラブル</div>
+        </div>
+        <div class="face face-3">
+            <div class="eval-title">評価+1</div>
+            <div class="eval-desc">回避</div>
         </div>
     </div>
 
-    <button id="roll-btn" onclick="rollDice()">サイコロを振る！</button>
-    <div id="result"></div>
+    <button id="rollButton">判定する</button>
+    <p id="resultText"></p>
 
     <script>
-        const faces = [
-            { value: "-1", label: "(トラブル)" },
-            { value: "±0", label: "(トラブル)" },
-            { value: "+1", label: "(回避)" }
-        ];
+        const diceContainer = document.getElementById('diceContainer');
+        const rollButton = document.getElementById('rollButton');
+        const resultText = document.getElementById('resultText');
+
+        // 結果のテキストデータ
+        const outcomes = {
+            1: "評価-1 (トラブル)",
+            2: "評価±0 (トラブル)",
+            3: "評価+1 (回避)"
+        };
+
+        rollButton.addEventListener('click', rollDice);
 
         function rollDice() {
-            const dice = document.getElementById("dice");
-            const diceText = document.getElementById("dice-text");
-            const diceLabel = document.getElementById("dice-label");
-            const resultDiv = document.getElementById("result");
-            const btn = document.getElementById("roll-btn");
+            rollButton.disabled = true;
+            resultText.textContent = "運命を判定中...";
 
-            btn.disabled = true;
-            resultDiv.textContent = "コロコロコロ…";
-            dice.classList.add("rolling");
+            // 1〜3のランダム
+            const result = Math.floor(Math.random() * 3) + 1;
 
-            let interval = setInterval(() => {
-                const randomFace = faces[Math.floor(Math.random() * faces.length)];
-                diceText.textContent = randomFace.value;
-                diceLabel.textContent = randomFace.label;
-            }, 80);
+            const baseRotations = 5; 
+            const angleMap = {
+                1: 0,
+                2: -120,
+                3: -240
+            };
+            
+            const finalAngle = (baseRotations * 360) + angleMap[result];
+            diceContainer.style.transform = `rotateY(${finalAngle}deg)`;
 
             setTimeout(() => {
-                clearInterval(interval);
-                dice.classList.remove("rolling");
-
-                const finalFace = faces[Math.floor(Math.random() * faces.length)];
-                diceText.textContent = finalFace.value;
-                diceLabel.textContent = finalFace.label;
-
-                resultDiv.textContent = `結果： ${finalFace.value} ${finalFace.label}`;
-                btn.disabled = false;
-            }, 800);
+                resultText.textContent = `結果：${outcomes[result]}`;
+                rollButton.disabled = false;
+            }, 1000);
         }
     </script>
 </body>
