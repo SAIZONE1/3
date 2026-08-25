@@ -34,8 +34,8 @@
             height: 160px;
             position: relative;
             transform-style: preserve-3d;
-            /* 鳴き声の長さに合わせて回転時間を「4.2秒」に調整 */
-            transition: transform 4.2s cubic-bezier(0.1, 0.9, 0.1, 1);
+            /* 回転時間を「4秒」に設定 */
+            transition: transform 4s cubic-bezier(0.1, 0.9, 0.1, 1);
             margin-bottom: 50px;
         }
 
@@ -133,7 +133,7 @@
     <h1>潮騒の判定</h1>
 
     <!-- 3Dサイコロの構造（3面） -->
-    <div class="dice-container" id="diceContainer">
+    / <div class="dice-container" id="diceContainer">
         <div class="face face-1">
             <div class="eval-title">評価-1</div>
             <div class="eval-desc">トラブル</div>
@@ -152,8 +152,6 @@
     <p id="resultText"></p>
 
     <script>
-        const diceContainer =, document.getElementById('diceContainer'); // カマキリバグ防止用修正
-        // 正しい変数宣言
         const diceEl = document.getElementById('diceContainer');
         const rollButton = document.getElementById('rollButton');
         const resultText = document.getElementById('resultText');
@@ -166,13 +164,13 @@
 
         let audioCtx = null;
 
-        // --- 「ザッ…ザーッ」という波の音（4.2秒間） ---
+        // --- 「ザッ…ザーッ」という波の音（4秒間） ---
         function playWaveSound() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
 
-            const duration = 4.2;
+            const duration = 4.0;
             const bufferSize = audioCtx.sampleRate * duration;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
@@ -190,13 +188,13 @@
             filter.frequency.setValueAtTime(300, audioCtx.currentTime);
             filter.frequency.linearRampToValueAtTime(1400, audioCtx.currentTime + 0.8);
             filter.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 1.8);
-            filter.frequency.linearRampToValueAtTime(1600, audioCtx.currentTime + 2.5);
-            filter.frequency.linearRampToValueAtTime(350, audioCtx.currentTime + 4.2);
+            filter.frequency.linearRampToValueAtTime(1500, audioCtx.currentTime + 2.6);
+            filter.frequency.linearRampToValueAtTime(250, audioCtx.currentTime + 4.0);
 
             const gainNode = audioCtx.createGain();
             gainNode.gain.setValueAtTime(0.45, audioCtx.currentTime);
             gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 1.2);
-            gainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 2.2);
+            gainNode.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 2.2);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
 
             noise.connect(filter);
@@ -207,63 +205,47 @@
             noise.stop(audioCtx.currentTime + duration);
         }
 
-        // --- より「ミャー」という猫っぽい、うみねこの鳴き声（のこぎり波＋ビブラート感） ---
-        function playCatLikeGullSound() {
+        // --- より野性的で生々しい、うみねこの鳴き声（口笛感を消した濁り声） ---
+        function playRealGullSound() {
             if (!audioCtx) return;
 
-            const now = audioCtx.currentTime;
+            // ダイスがちょうど止まる瞬間に鳴き声が綺麗に終わるよう、現在時刻を基準にします
+            const startTime = audioCtx.currentTime;
 
-            // うみねこ特有の「ミャー…ミャー」を再現するために、
-            // 「のこぎり波 (sawtooth)」という少しざらついた（動物の声らしい）波形を使います
-            
-            // 1回目の「ミャー」
-            const osc1 = audioCtx.createOscillator();
-            const gain1 = audioCtx.createGain();
-            osc1.type = 'sawtooth'; 
-            
-            // フィルターでこもらせて動物の生々しい声質にする
-            const filter1 = audioCtx.createBiquadFilter();
-            filter1.type = 'lowpass';
-            filter1.frequency.setValueAtTime(800, now);
+            // 口笛感を消すため、矩形波(square)に微量のノイズを混ぜ、バンドパスフィルターで鳥の喉っぽい成分を作ります
+            function createCaw(timeOffset, pitch1, pitch2, duration) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
 
-            // 「ミャー」と鳴くときの音程のうねり（キュイッと上がってクゥと下がる）
-            osc1.frequency.setValueAtTime(700, now);
-            osc1.frequency.linearRampToValueAtTime(1100, now + 0.15);
-            osc1.frequency.linearRampToValueAtTime(850, now + 0.4);
+                osc.type = 'square'; // 矩形波で少し「ガサッ」とした生々しい声質に
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(900, startTime + timeOffset);
+                filter.Q.setValueAtTime(3, startTime + timeOffset);
 
-            gain1.gain.setValueAtTime(0.01, now);
-            gain1.gain.linearRampToValueAtTime(0.12, now + 0.08);
-            gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+                // うみねこやカラスのような、特有の「グイッ」と上がる鳴き声の変化
+                osc.frequency.setValueAtTime(pitch1, startTime + timeOffset);
+                osc.frequency.linearRampToValueAtTime(pitch2, startTime + timeOffset + (duration * 0.4));
+                osc.frequency.linearRampToValueAtTime(pitch1 * 0.8, startTime + timeOffset + duration);
 
-            osc1.connect(filter1);
-            filter1.connect(gain1);
-            gain1.connect(audioCtx.destination);
-            
-            osc1.start(now);
-            osc1.stop(now + 0.45);
+                // 音量エンベロープ（スパッと入ってスッと切れる）
+                gain.gain.setValueAtTime(0.01, startTime + timeOffset);
+                gain.gain.linearRampToValueAtTime(0.08, startTime + timeOffset + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + timeOffset + duration);
 
-            // 2回目の「ミャー」（少し余韻を引く）
-            const osc2 = audioCtx.createOscillator();
-            const gain2 = audioCtx.createGain();
-            const filter2 = audioCtx.createBiquadFilter();
-            osc2.type = 'sawtooth';
-            filter2.type = 'lowpass';
-            filter2.frequency.setValueAtTime(750, now + 0.5);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
 
-            osc2.frequency.setValueAtTime(950, now + 0.5);
-            osc2.frequency.linearRampToValueAtTime(1250, now + 0.65);
-            osc2.frequency.linearRampToValueAtTime(700, now + 1.1);
+                osc.start(startTime + timeOffset);
+                osc.stop(startTime + timeOffset + duration);
+            }
 
-            gain2.gain.setValueAtTime(0.01, now + 0.5);
-            gain2.gain.linearRampToValueAtTime(0.15, now + 0.58);
-            gain2.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+            // 1回目の鳴き声（少し低めの「ミャッ」）
+            createCaw(2.6, 650, 950, 0.35);
 
-            osc2.connect(filter2);
-            filter2.connect(gain2);
-            gain2.connect(audioCtx.destination);
-
-            osc2.start(now + 0.5);
-            osc2.stop(now + 1.2);
+            // 2回目の鳴き声（少し高く伸びる「ミャァーー」）
+            createCaw(3.1, 800, 1150, 0.85); // ちょうど 3.1 + 0.85 = 3.95秒付近でピタッと終わります
         }
 
         rollButton.addEventListener('click', rollDice);
@@ -278,8 +260,8 @@
             diceEl.style.transform = 'rotateX(0deg) rotateY(0deg)';
             
             setTimeout(() => {
-                // 回転時間を「4.2秒」に設定
-                diceEl.style.transition = 'transform 4.2s cubic-bezier(0.1, 0.9, 0.1, 1)';
+                // 全体の回転時間を「4秒」に設定
+                diceEl.style.transition = 'transform 4s cubic-bezier(0.1, 0.9, 0.1, 1)';
 
                 const result = Math.floor(Math.random() * 3) + 1;
                 const extraXRotations = (Math.floor(Math.random() * 4) + 7) * 360;
@@ -294,20 +276,18 @@
                 const finalYAngle = (baseYRotations * 360) + angleMap[result];
                 const finalXAngle = extraXRotations;
 
-                // ダイスが回転を開始（3.2秒かけて回ったあと、残り1秒で鳴き声がはじまる設計）
+                // ダイスが回転を開始
                 diceEl.style.transform = `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
 
-                // 【同調演出】
-                // ① 回転開始から「3.2秒後」にうみねこの鳴き声（約1秒間）をスタートする
-                setTimeout(() => {
-                    playCatLikeGullSound();
-                }, 3200);
+                // 鳴き声を再生（2回に分けて、最後の鳴き声がちょうど4秒後に綺麗に消えるタイミングに設計）
+                playRealGullSound();
 
-                // ② 鳴き声がぴったり終わる「4.2秒後」に、ダイスが完全に止まり結果を表示する
+                // 【完全同調】
+                // ダイスの回転が「ちょうど4秒後」に止まると同時に、結果のテキストを表示する
                 setTimeout(() => {
                     resultText.textContent = `結果：${outcomes[result]}`;
                     rollButton.disabled = false;
-                }, 4200);
+                }, 4000);
 
             }, 50);
         }
