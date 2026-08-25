@@ -429,40 +429,48 @@ function playWaveSound() {
    うみねこの鳴き声
    複数の音を重ねて自然な鳴き声にする
 ========================================================= */
-
 function playRealGullSound() {
 
     try {
 
         initAudio();
 
-        const startTime =
-            audioCtx.currentTime;
+        const startTime = audioCtx.currentTime;
 
 
-        /* -------------------------------------------------
-           1つの鳴き声を作る
-        ------------------------------------------------- */
+        /* =================================================
+           うみねこ
+           「アーーッ、アーーッ」という鳴き方
+        ================================================= */
 
-        function createGullCall(
+        function createGullCry(
             timeOffset,
             startFreq,
             peakFreq,
             endFreq,
-            duration
+            duration,
+            volume
         ) {
 
-            const start =
-                startTime + timeOffset;
+            const start = startTime + timeOffset;
 
 
-            /* 基本音 */
+            /* ---------------------------------------------
+               メインの「アー」の声
+            --------------------------------------------- */
 
-            const osc =
-                audioCtx.createOscillator();
+            const osc = audioCtx.createOscillator();
 
-            osc.type = "triangle";
+            osc.type = "sawtooth";
 
+
+            /*
+             * 最初は低め
+             * ↓
+             * 一気に高くなる
+             * ↓
+             * 最後に少し落ちる
+             */
 
             osc.frequency.setValueAtTime(
                 startFreq,
@@ -471,7 +479,7 @@ function playRealGullSound() {
 
             osc.frequency.exponentialRampToValueAtTime(
                 peakFreq,
-                start + duration * 0.35
+                start + duration * 0.30
             );
 
             osc.frequency.exponentialRampToValueAtTime(
@@ -480,58 +488,9 @@ function playRealGullSound() {
             );
 
 
-            /* 倍音 */
-
-            const harmonic =
-                audioCtx.createOscillator();
-
-            harmonic.type = "sine";
-
-
-            harmonic.frequency.setValueAtTime(
-                startFreq * 2.01,
-                start
-            );
-
-            harmonic.frequency.exponentialRampToValueAtTime(
-                peakFreq * 2.01,
-                start + duration * 0.35
-            );
-
-            harmonic.frequency.exponentialRampToValueAtTime(
-                endFreq * 2,
-                start + duration
-            );
-
-
-            /* 音量 */
-
-            const gain =
-                audioCtx.createGain();
-
-
-            gain.gain.setValueAtTime(
-                0.001,
-                start
-            );
-
-            gain.gain.linearRampToValueAtTime(
-                0.12,
-                start + 0.04
-            );
-
-            gain.gain.linearRampToValueAtTime(
-                0.09,
-                start + duration * 0.55
-            );
-
-            gain.gain.exponentialRampToValueAtTime(
-                0.001,
-                start + duration
-            );
-
-
-            /* 声っぽいフィルター */
+            /* ---------------------------------------------
+               声を丸くするフィルター
+            --------------------------------------------- */
 
             const filter =
                 audioCtx.createBiquadFilter();
@@ -539,142 +498,98 @@ function playRealGullSound() {
             filter.type = "bandpass";
 
             filter.frequency.setValueAtTime(
-                1200,
+                900,
                 start
             );
 
-            filter.frequency.linearRampToValueAtTime(
-                1900,
-                start + duration * 0.4
+            filter.frequency.exponentialRampToValueAtTime(
+                1500,
+                start + duration * 0.35
             );
 
-            filter.frequency.linearRampToValueAtTime(
-                850,
+            filter.frequency.exponentialRampToValueAtTime(
+                700,
                 start + duration
             );
 
-            filter.Q.value = 2.5;
+            filter.Q.value = 1.4;
+
+
+            /* ---------------------------------------------
+               音量
+            --------------------------------------------- */
+
+            const gain =
+                audioCtx.createGain();
+
+            gain.gain.setValueAtTime(
+                0.001,
+                start
+            );
+
+            /* 「アッ！」と声が立ち上がる */
+
+            gain.gain.exponentialRampToValueAtTime(
+                volume,
+                start + 0.035
+            );
+
+            /* 少し伸ばす */
+
+            gain.gain.setValueAtTime(
+                volume * 0.85,
+                start + duration * 0.35
+            );
+
+            /* 最後はスッと消える */
+
+            gain.gain.exponentialRampToValueAtTime(
+                0.001,
+                start + duration
+            );
 
 
             osc
-                .connect(filter);
-
-            harmonic
-                .connect(filter);
-
-            filter
+                .connect(filter)
                 .connect(gain)
                 .connect(audioCtx.destination);
 
 
             osc.start(start);
 
-            harmonic.start(start);
-
-
             osc.stop(start + duration);
 
-            harmonic.stop(start + duration);
-
         }
 
 
-        /* -------------------------------------------------
-           うみねこの特徴的な2声
-        ------------------------------------------------- */
+        /* =================================================
+           1声目
+           「アーーッ」
+        ================================================= */
 
-        createGullCall(
+        createGullCry(
             0.0,
-            620,
-            1050,
-            520,
-            0.48
+            380,
+            760,
+            470,
+            0.58,
+            0.14
         );
 
 
-        createGullCall(
-            0.42,
-            720,
-            1250,
-            560,
-            0.72
-        );
+        /* =================================================
+           2声目
+           少し高く
+           「アーーッ」
+        ================================================= */
 
-
-        /* -------------------------------------------------
-           小さなノイズ成分
-           「ギャー」という鳥っぽさを追加
-        ------------------------------------------------- */
-
-        const noiseDuration = 1.15;
-
-        const buffer =
-            audioCtx.createBuffer(
-                1,
-                audioCtx.sampleRate * noiseDuration,
-                audioCtx.sampleRate
-            );
-
-        const data =
-            buffer.getChannelData(0);
-
-
-        for (let i = 0; i < data.length; i++) {
-
-            data[i] =
-                Math.random() * 2 - 1;
-
-        }
-
-
-        const noise =
-            audioCtx.createBufferSource();
-
-        noise.buffer = buffer;
-
-
-        const noiseFilter =
-            audioCtx.createBiquadFilter();
-
-        noiseFilter.type =
-            "bandpass";
-
-        noiseFilter.frequency.value =
-            1800;
-
-        noiseFilter.Q.value =
-            2;
-
-
-        const noiseGain =
-            audioCtx.createGain();
-
-        noiseGain.gain.setValueAtTime(
-            0.001,
-            startTime
-        );
-
-        noiseGain.gain.linearRampToValueAtTime(
-            0.025,
-            startTime + 0.5
-        );
-
-        noiseGain.gain.exponentialRampToValueAtTime(
-            0.001,
-            startTime + noiseDuration
-        );
-
-
-        noise
-            .connect(noiseFilter)
-            .connect(noiseGain)
-            .connect(audioCtx.destination);
-
-
-        noise.start(startTime);
-
-        noise.stop(
-            startTime + noiseDuration
+        createGullCry(
+            0.72,
+            430,
+            900,
+            500,
+            0.72,
+            0.16
         );
 
 
@@ -688,7 +603,6 @@ function playRealGullSound() {
     }
 
 }
-
 
 /* =========================================================
    サイコロを振る
