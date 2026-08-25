@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>海の判定ダイス</title>
+
     <style>
-        /* --- 全体のレイアウト（海をイメージした深い青色） --- */
         body {
             margin: 0;
             padding: 0;
@@ -28,7 +28,6 @@
             letter-spacing: 2px;
         }
 
-        /* --- 3Dサイコロ（三角柱）のコンテナ --- */
         .dice-container {
             width: 220px;
             height: 160px;
@@ -38,7 +37,6 @@
             margin-bottom: 50px;
         }
 
-        /* --- 三角柱の側面（共通設定） --- */
         .face {
             position: absolute;
             top: 0;
@@ -61,19 +59,20 @@
             text-align: center;
         }
 
-        /* --- 各面のデザインと海らしいカラー --- */
-        .face-1 { 
-            background-color: #d9534f; /* トラブル（赤系） */
+        .face-1 {
+            background-color: #d9534f;
             color: white;
             transform: rotateY(0deg) translateZ(95px);
         }
-        .face-2 { 
-            background-color: #e67e22; /* ±0トラブル（オレンジ系） */
+
+        .face-2 {
+            background-color: #e67e22;
             color: white;
             transform: rotateY(120deg) translateZ(95px);
         }
-        .face-3 { 
-            background-color: #27ae60; /* 回避（海風のような緑系） */
+
+        .face-3 {
+            background-color: #27ae60;
             color: white;
             transform: rotateY(240deg) translateZ(95px);
         }
@@ -91,7 +90,6 @@
             color: white;
         }
 
-        /* --- ボタン --- */
         #rollButton {
             padding: 15px 35px;
             font-size: 1.2rem;
@@ -118,7 +116,6 @@
             cursor: not-allowed;
         }
 
-        /* --- 結果表示エリア --- */
         #resultText {
             margin-top: 20px;
             font-size: 1.2rem;
@@ -127,172 +124,672 @@
         }
     </style>
 </head>
+
 <body>
 
     <h1>潮騒の判定</h1>
 
-    <!-- 3Dサイコロの構造（3面） -->
     <div class="dice-container" id="diceContainer">
+
         <div class="face face-1">
             <div class="eval-title">評価-1</div>
             <div class="eval-desc">トラブル</div>
         </div>
+
         <div class="face face-2">
             <div class="eval-title">評価±0</div>
             <div class="eval-desc">トラブル</div>
         </div>
+
         <div class="face face-3">
             <div class="eval-title">評価+1</div>
             <div class="eval-desc">回避</div>
         </div>
+
     </div>
 
     <button id="rollButton">海に祈る</button>
+
     <p id="resultText"></p>
 
-    <script>
-        const diceEl = document.getElementById('diceContainer');
-        const rollButton = document.getElementById('rollButton');
-        const resultText = document.getElementById('resultText');
 
-        const outcomes = {
-            1: "評価-1 (トラブル)",
-            2: "評価±0 (トラブル)",
-            3: "評価+1 (回避)"
+<script>
+
+const diceEl = document.getElementById('diceContainer');
+const rollButton = document.getElementById('rollButton');
+const resultText = document.getElementById('resultText');
+
+
+const outcomes = {
+    1: "評価-1 (トラブル)",
+    2: "評価±0 (トラブル)",
+    3: "評価+1 (回避)"
+};
+
+
+let audioCtx = null;
+
+
+/* =========================================================
+   オーディオ初期化
+========================================================= */
+
+function initAudio() {
+
+    if (!audioCtx) {
+
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    }
+
+    if (audioCtx.state === 'suspended') {
+
+        audioCtx.resume();
+
+    }
+
+}
+
+
+/* =========================================================
+   海の波音
+   「低い波」＋「泡」の2層構造
+========================================================= */
+
+function playWaveSound() {
+
+    try {
+
+        initAudio();
+
+        const now = audioCtx.currentTime;
+        const duration = 4.8;
+
+
+        /* -------------------------------------------------
+           ① 大きな波の低い音
+        ------------------------------------------------- */
+
+        const lowBuffer =
+            audioCtx.createBuffer(
+                1,
+                audioCtx.sampleRate * duration,
+                audioCtx.sampleRate
+            );
+
+        const lowData = lowBuffer.getChannelData(0);
+
+
+        for (let i = 0; i < lowData.length; i++) {
+
+            lowData[i] = Math.random() * 2 - 1;
+
+        }
+
+
+        const lowNoise =
+            audioCtx.createBufferSource();
+
+        lowNoise.buffer = lowBuffer;
+
+
+        const lowFilter =
+            audioCtx.createBiquadFilter();
+
+        lowFilter.type = "lowpass";
+
+        lowFilter.frequency.setValueAtTime(
+            120,
+            now
+        );
+
+        lowFilter.frequency.linearRampToValueAtTime(
+            350,
+            now + 1.0
+        );
+
+        lowFilter.frequency.linearRampToValueAtTime(
+            170,
+            now + 2.2
+        );
+
+        lowFilter.frequency.linearRampToValueAtTime(
+            420,
+            now + 3.1
+        );
+
+        lowFilter.frequency.linearRampToValueAtTime(
+            90,
+            now + duration
+        );
+
+
+        const lowGain =
+            audioCtx.createGain();
+
+        lowGain.gain.setValueAtTime(
+            0.01,
+            now
+        );
+
+        lowGain.gain.linearRampToValueAtTime(
+            0.22,
+            now + 0.7
+        );
+
+        lowGain.gain.linearRampToValueAtTime(
+            0.38,
+            now + 1.1
+        );
+
+        lowGain.gain.linearRampToValueAtTime(
+            0.16,
+            now + 2.0
+        );
+
+        lowGain.gain.linearRampToValueAtTime(
+            0.32,
+            now + 3.0
+        );
+
+        lowGain.gain.exponentialRampToValueAtTime(
+            0.01,
+            now + duration
+        );
+
+
+        lowNoise
+            .connect(lowFilter)
+            .connect(lowGain)
+            .connect(audioCtx.destination);
+
+
+        lowNoise.start(now);
+
+        lowNoise.stop(now + duration);
+
+
+
+        /* -------------------------------------------------
+           ② 波が砕ける「シュワー」という高音
+        ------------------------------------------------- */
+
+        const foamBuffer =
+            audioCtx.createBuffer(
+                1,
+                audioCtx.sampleRate * duration,
+                audioCtx.sampleRate
+            );
+
+        const foamData =
+            foamBuffer.getChannelData(0);
+
+
+        for (let i = 0; i < foamData.length; i++) {
+
+            foamData[i] =
+                Math.random() * 2 - 1;
+
+        }
+
+
+        const foamNoise =
+            audioCtx.createBufferSource();
+
+        foamNoise.buffer = foamBuffer;
+
+
+        const foamFilter =
+            audioCtx.createBiquadFilter();
+
+        foamFilter.type = "bandpass";
+
+        foamFilter.frequency.setValueAtTime(
+            700,
+            now
+        );
+
+        foamFilter.frequency.linearRampToValueAtTime(
+            2400,
+            now + 0.9
+        );
+
+        foamFilter.frequency.linearRampToValueAtTime(
+            1100,
+            now + 1.8
+        );
+
+        foamFilter.frequency.linearRampToValueAtTime(
+            2800,
+            now + 2.9
+        );
+
+        foamFilter.frequency.linearRampToValueAtTime(
+            500,
+            now + duration
+        );
+
+
+        foamFilter.Q.value = 0.7;
+
+
+        const foamGain =
+            audioCtx.createGain();
+
+        foamGain.gain.setValueAtTime(
+            0.01,
+            now
+        );
+
+        foamGain.gain.linearRampToValueAtTime(
+            0.16,
+            now + 0.8
+        );
+
+        foamGain.gain.linearRampToValueAtTime(
+            0.04,
+            now + 1.7
+        );
+
+        foamGain.gain.linearRampToValueAtTime(
+            0.19,
+            now + 2.8
+        );
+
+        foamGain.gain.exponentialRampToValueAtTime(
+            0.001,
+            now + duration
+        );
+
+
+        foamNoise
+            .connect(foamFilter)
+            .connect(foamGain)
+            .connect(audioCtx.destination);
+
+
+        foamNoise.start(now);
+
+        foamNoise.stop(now + duration);
+
+
+    } catch(e) {
+
+        console.log(
+            "波音エラー:",
+            e
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   うみねこの鳴き声
+   複数の音を重ねて自然な鳴き声にする
+========================================================= */
+
+function playRealGullSound() {
+
+    try {
+
+        initAudio();
+
+        const startTime =
+            audioCtx.currentTime;
+
+
+        /* -------------------------------------------------
+           1つの鳴き声を作る
+        ------------------------------------------------- */
+
+        function createGullCall(
+            timeOffset,
+            startFreq,
+            peakFreq,
+            endFreq,
+            duration
+        ) {
+
+            const start =
+                startTime + timeOffset;
+
+
+            /* 基本音 */
+
+            const osc =
+                audioCtx.createOscillator();
+
+            osc.type = "triangle";
+
+
+            osc.frequency.setValueAtTime(
+                startFreq,
+                start
+            );
+
+            osc.frequency.exponentialRampToValueAtTime(
+                peakFreq,
+                start + duration * 0.35
+            );
+
+            osc.frequency.exponentialRampToValueAtTime(
+                endFreq,
+                start + duration
+            );
+
+
+            /* 倍音 */
+
+            const harmonic =
+                audioCtx.createOscillator();
+
+            harmonic.type = "sine";
+
+
+            harmonic.frequency.setValueAtTime(
+                startFreq * 2.01,
+                start
+            );
+
+            harmonic.frequency.exponentialRampToValueAtTime(
+                peakFreq * 2.01,
+                start + duration * 0.35
+            );
+
+            harmonic.frequency.exponentialRampToValueAtTime(
+                endFreq * 2,
+                start + duration
+            );
+
+
+            /* 音量 */
+
+            const gain =
+                audioCtx.createGain();
+
+
+            gain.gain.setValueAtTime(
+                0.001,
+                start
+            );
+
+            gain.gain.linearRampToValueAtTime(
+                0.12,
+                start + 0.04
+            );
+
+            gain.gain.linearRampToValueAtTime(
+                0.09,
+                start + duration * 0.55
+            );
+
+            gain.gain.exponentialRampToValueAtTime(
+                0.001,
+                start + duration
+            );
+
+
+            /* 声っぽいフィルター */
+
+            const filter =
+                audioCtx.createBiquadFilter();
+
+            filter.type = "bandpass";
+
+            filter.frequency.setValueAtTime(
+                1200,
+                start
+            );
+
+            filter.frequency.linearRampToValueAtTime(
+                1900,
+                start + duration * 0.4
+            );
+
+            filter.frequency.linearRampToValueAtTime(
+                850,
+                start + duration
+            );
+
+            filter.Q.value = 2.5;
+
+
+            osc
+                .connect(filter);
+
+            harmonic
+                .connect(filter);
+
+            filter
+                .connect(gain)
+                .connect(audioCtx.destination);
+
+
+            osc.start(start);
+
+            harmonic.start(start);
+
+
+            osc.stop(start + duration);
+
+            harmonic.stop(start + duration);
+
+        }
+
+
+        /* -------------------------------------------------
+           うみねこの特徴的な2声
+        ------------------------------------------------- */
+
+        createGullCall(
+            0.0,
+            620,
+            1050,
+            520,
+            0.48
+        );
+
+
+        createGullCall(
+            0.42,
+            720,
+            1250,
+            560,
+            0.72
+        );
+
+
+        /* -------------------------------------------------
+           小さなノイズ成分
+           「ギャー」という鳥っぽさを追加
+        ------------------------------------------------- */
+
+        const noiseDuration = 1.15;
+
+        const buffer =
+            audioCtx.createBuffer(
+                1,
+                audioCtx.sampleRate * noiseDuration,
+                audioCtx.sampleRate
+            );
+
+        const data =
+            buffer.getChannelData(0);
+
+
+        for (let i = 0; i < data.length; i++) {
+
+            data[i] =
+                Math.random() * 2 - 1;
+
+        }
+
+
+        const noise =
+            audioCtx.createBufferSource();
+
+        noise.buffer = buffer;
+
+
+        const noiseFilter =
+            audioCtx.createBiquadFilter();
+
+        noiseFilter.type =
+            "bandpass";
+
+        noiseFilter.frequency.value =
+            1800;
+
+        noiseFilter.Q.value =
+            2;
+
+
+        const noiseGain =
+            audioCtx.createGain();
+
+        noiseGain.gain.setValueAtTime(
+            0.001,
+            startTime
+        );
+
+        noiseGain.gain.linearRampToValueAtTime(
+            0.025,
+            startTime + 0.5
+        );
+
+        noiseGain.gain.exponentialRampToValueAtTime(
+            0.001,
+            startTime + noiseDuration
+        );
+
+
+        noise
+            .connect(noiseFilter)
+            .connect(noiseGain)
+            .connect(audioCtx.destination);
+
+
+        noise.start(startTime);
+
+        noise.stop(
+            startTime + noiseDuration
+        );
+
+
+    } catch(e) {
+
+        console.log(
+            "うみねこの音エラー:",
+            e
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   サイコロを振る
+========================================================= */
+
+rollButton.addEventListener(
+    'click',
+    rollDice
+);
+
+
+function rollDice() {
+
+    rollButton.disabled = true;
+
+    resultText.textContent =
+        "波間に運命を委ねる...";
+
+
+    /* 波音開始 */
+
+    playWaveSound();
+
+
+    diceEl.style.transition =
+        'none';
+
+    diceEl.style.transform =
+        'rotateX(0deg) rotateY(0deg)';
+
+
+    setTimeout(() => {
+
+        diceEl.style.transition =
+            'transform 4s cubic-bezier(0.1, 0.9, 0.1, 1)';
+
+
+        const result =
+            Math.floor(Math.random() * 3) + 1;
+
+
+        const extraXRotations =
+            (Math.floor(Math.random() * 4) + 7) * 360;
+
+
+        const baseYRotations =
+            10;
+
+
+        const angleMap = {
+
+            1: 0,
+
+            2: -120,
+
+            3: -240
+
         };
 
-        let audioCtx = null;
 
-        // 音の初期化（スマホ対策）
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
+        const finalYAngle =
+            (baseYRotations * 360)
+            + angleMap[result];
 
-        // --- 波の音 ---
-        function playWaveSound() {
-            try {
-                initAudio();
-                const duration = 4.0;
-                const bufferSize = audioCtx.sampleRate * duration;
-                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const data = buffer.getChannelData(0);
 
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
+        const finalXAngle =
+            extraXRotations;
 
-                const noise = audioCtx.createBufferSource();
-                noise.buffer = buffer;
 
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                
-                filter.frequency.setValueAtTime(300, audioCtx.currentTime);
-                filter.frequency.linearRampToValueAtTime(1400, audioCtx.currentTime + 0.8);
-                filter.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 1.8);
-                filter.frequency.linearRampToValueAtTime(1500, audioCtx.currentTime + 2.6);
-                filter.frequency.linearRampToValueAtTime(250, audioCtx.currentTime + 4.0);
+        diceEl.style.transform =
+            `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
 
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.setValueAtTime(0.45, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 1.2);
-                gainNode.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 2.2);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
 
-                noise.connect(filter);
-                filter.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
+        /* うみねこの声 */
 
-                noise.start();
-                noise.stop(audioCtx.currentTime + duration);
-            } catch(e) {
-                console.log("音の再生でエラー:", e);
-            }
-        }
+        setTimeout(() => {
 
-        // --- うみねこの鳴き声 ---
-        function playRealGullSound() {
-            try {
-                initAudio();
-                const startTime = audioCtx.currentTime;
+            playRealGullSound();
 
-                function createCaw(timeOffset, pitch1, pitch2, duration) {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    const filter = audioCtx.createBiquadFilter();
+        }, 2700);
 
-                    osc.type = 'square';
-                    filter.type = 'bandpass';
-                    filter.frequency.setValueAtTime(900, startTime + timeOffset);
-                    filter.Q.setValueAtTime(3, startTime + timeOffset);
 
-                    osc.frequency.setValueAtTime(pitch1, startTime + timeOffset);
-                    osc.frequency.linearRampToValueAtTime(pitch2, startTime + timeOffset + (duration * 0.4));
-                    osc.frequency.linearRampToValueAtTime(pitch1 * 0.8, startTime + timeOffset + duration);
+        /* 結果 */
 
-                    gain.gain.setValueAtTime(0.01, startTime + timeOffset);
-                    gain.gain.linearRampToValueAtTime(0.08, startTime + timeOffset + 0.05);
-                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + timeOffset + duration);
+        setTimeout(() => {
 
-                    osc.connect(filter);
-                    filter.connect(gain);
-                    gain.connect(audioCtx.destination);
+            resultText.textContent =
+                `結果：${outcomes[result]}`;
 
-                    osc.start(startTime + timeOffset);
-                    osc.stop(startTime + timeOffset + duration);
-                }
 
-                createCaw(2.6, 650, 950, 0.35);
-                createCaw(3.1, 800, 1150, 0.85);
-            } catch(e) {
-                console.log("鳴き声のエラー:", e);
-            }
-        }
+            rollButton.disabled =
+                false;
 
-        rollButton.addEventListener('click', rollDice);
+        }, 4000);
 
-        function rollDice() {
-            rollButton.disabled = true;
-            resultText.textContent = "波間に運命を委ねる...";
 
-            // 音を安全に再生
-            playWaveSound();
+    }, 50);
 
-            diceEl.style.transition = 'none';
-            diceEl.style.transform = 'rotateX(0deg) rotateY(0deg)';
-            
-            setTimeout(() => {
-                diceEl.style.transition = 'transform 4s cubic-bezier(0.1, 0.9, 0.1, 1)';
+}
 
-                const result = Math.floor(Math.random() * 3) + 1;
-                const extraXRotations = (Math.floor(Math.random() * 4) + 7) * 360;
-                const baseYRotations = 10;
-                
-                const angleMap = {
-                    1: 0,
-                    2: -120,
-                    3: -240
-                };
-                
-                const finalYAngle = (baseYRotations * 360) + angleMap[result];
-                const finalXAngle = extraXRotations;
+</script>
 
-                diceEl.style.transform = `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
-
-                playRealGullSound();
-
-                setTimeout(() => {
-                    resultText.textContent = `結果：${outcomes[result]}`;
-                    rollButton.disabled = false;
-                }, 4000);
-
-            }, 50);
-        }
-    </script>
 </body>
 </html>
