@@ -33,7 +33,6 @@
             height: 160px;
             position: relative;
             transform-style: preserve-3d;
-            /* 変化の時間を「5秒」に設定 */
             transition: transform 5s cubic-bezier(0.1, 0.9, 0.1, 1);
             margin-bottom: 50px;
         }
@@ -93,7 +92,7 @@
         /* --- ボタン --- */
         #rollButton {
             padding: 15px 30px;
-            font-size: 1.2rem;
+      font-size: 1.2rem;
             background-color: #3498db;
             color: white;
             border: none;
@@ -155,26 +154,85 @@
             3: "評価+1 (回避)"
         };
 
+        // --- 音を鳴らすための機能（Web Audio API） ---
+        let audioCtx = null;
+
+        function playRollSound() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // 5秒間、サイコロがガラガラと転がるようなノイズ音と高低音を作る
+            const bufferSize = audioCtx.sampleRate * 5; // 5秒分
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            // ザラザラした転がり音の波形を作る
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            // 音のフィルター（こもった音からハッキリした音に調整）
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.Q.setValueAtTime(1, audioCtx.currentTime);
+
+            // 音量の変化（最初は大きく、5秒かけて小さくなって消える）
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 5.0);
+
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            noise.start();
+            noise.stop(audioCtx.currentTime + 5.0);
+        }
+
+        // 最後にピタッと止まったときの「カチッ」という音
+        function playStopSound() {
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
         rollButton.addEventListener('click', rollDice);
 
         function rollDice() {
             rollButton.disabled = true;
             resultText.textContent = "運命を判定中...";
 
-            // 1. 【重要】何回押しても必ず一度動きをリセットし、アニメーションを滑らかにするための一工夫
+            // 回転音を再生
+            playRollSound();
+
             diceContainer.style.transition = 'none';
             diceContainer.style.transform = 'rotateX(0deg) rotateY(0deg)';
             
-            // わずかに時間を置いてから回転をスタートさせる（これで毎回必ず0度から再スタートします）
             setTimeout(() => {
                 diceContainer.style.transition = 'transform 5s cubic-bezier(0.1, 0.9, 0.1, 1)';
 
-                // 1〜3のランダムな目
                 const result = Math.floor(Math.random() * 3) + 1;
-
-                // 5秒間たっぷり激しく回転する回転数
-                const extraXRotations = (Math.floor(Math.random() * 4) + 8) * 360; // 8〜11回転
-                const baseYRotations = 12; // 12回転分の横回転
+                const extraXRotations = (Math.floor(Math.random() * 4) + 8) * 360;
+                const baseYRotations = 12;
                 
                 const angleMap = {
                     1: 0,
@@ -185,16 +243,16 @@
                 const finalYAngle = (baseYRotations * 360) + angleMap[result];
                 const finalXAngle = extraXRotations;
 
-                // 5秒間の回転を実行
                 diceContainer.style.transform = `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
 
-                // 5秒間（5000ミリ秒）かけてじっくり回転し、結果を表示
+                // 5秒後に停止音を鳴らし、結果を表示
                 setTimeout(() => {
+                    playStopSound(); // 止まったときの音
                     resultText.textContent = `結果：${outcomes[result]}`;
                     rollButton.disabled = false;
                 }, 5000);
 
-            }, 50); // 0.05秒後に発動
+            }, 50);
         }
     </script>
 </body>
