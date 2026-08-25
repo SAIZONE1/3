@@ -33,8 +33,8 @@
             height: 160px;
             position: relative;
             transform-style: preserve-3d;
-            /* 縦横の回転をなめらかに変化させる */
-            transition: transform 2s cubic-bezier(0.15, 0.9, 0.2, 1);
+            /* 変化の時間を「3秒」に変更し、より滑らかに減速するように調整 */
+            transition: transform 3s cubic-bezier(0.1, 0.8, 0.1, 1);
             margin-bottom: 50px;
         }
 
@@ -164,11 +164,10 @@
             // 1〜3のランダムな目
             const result = Math.floor(Math.random() * 3) + 1;
 
-            // 縦回転(X軸)は「360度の倍数（＝必ず元の真直ぐな向きに戻る）」に設定することで逆さまを防ぎます！
-            const extraXRotations = (Math.floor(Math.random() * 3) + 3) * 360; // 3〜5回転分の縦ゴロゴロ
-
-            // 横回転(Y軸)は目的の面が正面を向く角度に調整
-            const baseYRotations = 5; // 5回転分の横ゴロゴロ
+            // 縦回転(X軸)・横回転(Y軸)ともに回転数を増やして、3秒間たっぷり回るようにする
+            const extraXRotations = (Math.floor(Math.random() * 3) + 5) * 360; // 5〜7回転
+            const baseYRotations = 7; // 7回転分の横回転
+            
             const angleMap = {
                 1: 0,
                 2: -120,
@@ -176,16 +175,16 @@
             };
             
             const finalYAngle = (baseYRotations * 360) + angleMap[result];
-            const finalXAngle = extraXRotations; // 360の倍数なので最終的に必ず真っ直ぐに戻る
+            const finalXAngle = extraXRotations;
 
-            // 縦と横を同時にダイナミックに回転させる
+            // 回転を実行
             diceContainer.style.transform = `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
 
-            // 回転時間（2秒）に合わせて結果を表示
+            // 3秒間（3000ミリ秒）かけてじっくり回転させ、最後に結果を表示
             setTimeout(() => {
                 resultText.textContent = `結果：${outcomes[result]}`;
                 rollButton.disabled = false;
-            }, 2000);
+            }, 3000);
         }
     </script>
 </body>
