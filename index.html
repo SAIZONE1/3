@@ -582,12 +582,12 @@ function playRealGullSound() {
             raspFilter.type = "highpass";
 
             raspFilter.frequency.setValueAtTime(
-                1000,
+                650,
                 start
             );
 
             raspFilter.frequency.linearRampToValueAtTime(
-                1600,
+                1000,
                 start + 0.05
             );
 
