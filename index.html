@@ -34,6 +34,7 @@
             height: 160px;
             position: relative;
             transform-style: preserve-3d;
+            /* 鳴き声の長さに合わせて回転時間を「4秒」に設定 */
             transition: transform 4s cubic-bezier(0.1, 0.9, 0.1, 1);
             margin-bottom: 50px;
         }
@@ -163,7 +164,6 @@
 
         let audioCtx = null;
 
-        // 音の初期化（スマホ対策）
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -173,84 +173,63 @@
             }
         }
 
-        // --- 波の音 ---
-        function playWaveSound() {
+        // --- 「ミファミレ、ミファミレ」のうみねこ専用の鳴き声 ---
+        function playGullMelody() {
             try {
                 initAudio();
-                const duration = 4.0;
-                const bufferSize = audioCtx.sampleRate * duration;
-                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const data = buffer.getChannelData(0);
+                const now = audioCtx.currentTime;
 
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
+                // ミ(659Hz)、ファ(698Hz)、レ(587Hz) の周波数
+                const freqMi = 659.25;
+                const freqFa = 698.46;
+                const freqRe = 587.33;
 
-                const noise = audioCtx.createBufferSource();
-                noise.buffer = buffer;
+                // 1音あたりの長さと間隔をゆったりめに調整
+                // 「ミファミレ」を2回繰り返す構成（全体で約3.5秒かけてダイス停止に合わせる）
+                const notes = [
+                    { freq: freqMi, start: 0.5, duration: 0.35 },
+                    { freq: freqFa, start: 0.9, duration: 0.35 },
+                    { freq: freqMi, start: 1.3, duration: 0.35 },
+                    { freq: freqRe, start: 1.7, duration: 0.55 },
 
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                
-                filter.frequency.setValueAtTime(300, audioCtx.currentTime);
-                filter.frequency.linearRampToValueAtTime(1400, audioCtx.currentTime + 0.8);
-                filter.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 1.8);
-                filter.frequency.linearRampToValueAtTime(1500, audioCtx.currentTime + 2.6);
-                filter.frequency.linearRampToValueAtTime(250, audioCtx.currentTime + 4.0);
+                    { freq: freqMi, start: 2.4, duration: 0.35 },
+                    { freq: freqFa, start: 2.8, duration: 0.35 },
+                    { freq: freqMi, start: 3.2, duration: 0.35 },
+                    { freq: freqRe, start: 3.6, duration: 0.40 } // ここでちょうど4.0秒にピッタリ終わります
+                ];
 
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.setValueAtTime(0.45, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 1.2);
-                gainNode.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 2.2);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-
-                noise.connect(filter);
-                filter.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-
-                noise.start();
-                noise.stop(audioCtx.currentTime + duration);
-            } catch(e) {
-                console.log("音の再生でエラー:", e);
-            }
-        }
-
-        // --- うみねこの鳴き声 ---
-        function playRealGullSound() {
-            try {
-                initAudio();
-                const startTime = audioCtx.currentTime;
-
-                function createCaw(timeOffset, pitch1, pitch2, duration) {
+                notes.forEach(n => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     const filter = audioCtx.createBiquadFilter();
 
-                    osc.type = 'square';
-                    filter.type = 'bandpass';
-                    filter.frequency.setValueAtTime(900, startTime + timeOffset);
-                    filter.Q.setValueAtTime(3, startTime + timeOffset);
+                    // 鳥らしい生っぽさが出るように「ノコギリ波」を使用
+                    osc.type = 'sawtooth';
+                    
+                    // こもりフィルターで耳障りさを削る
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(1200, now + n.start);
 
-                    osc.frequency.setValueAtTime(pitch1, startTime + timeOffset);
-                    osc.frequency.linearRampToValueAtTime(pitch2, startTime + timeOffset + (duration * 0.4));
-                    osc.frequency.linearRampToValueAtTime(pitch1 * 0.8, startTime + timeOffset + duration);
+                    // 音程を少し滑らかに滑らせる（グライド効果）
+                    osc.frequency.setValueAtTime(n.freq * 0.9, now + n.start);
+                    osc.frequency.linearRampToValueAtTime(n.freq, now + n.start + (n.duration * 0.3));
+                    osc.frequency.linearRampToValueAtTime(n.freq * 0.95, now + n.start + n.duration);
 
-                    gain.gain.setValueAtTime(0.01, startTime + timeOffset);
-                    gain.gain.linearRampToValueAtTime(0.08, startTime + timeOffset + 0.05);
-                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + timeOffset + duration);
+                    // 鳴き声のふくらみと消え方
+                    gain.gain.setValueAtTime(0.01, now + n.start);
+                    gain.gain.linearRampToValueAtTime(0.08, now + n.start + 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.duration);
 
                     osc.connect(filter);
                     filter.connect(gain);
                     gain.connect(audioCtx.destination);
 
-                    osc.start(startTime + timeOffset);
-                    osc.stop(startTime + timeOffset + duration);
-                }
+                    osc.start(now + n.start);
+                    osc.stop(now + n.start + n.duration);
+                });
 
-                createCaw(2.6, 650, 950, 0.35);
-                createCaw(3.1, 800, 1150, 0.85);
             } catch(e) {
-                console.log("鳴き声のエラー:", e);
+                console.log("鳴き声エラー:", e);
             }
         }
 
@@ -258,15 +237,13 @@
 
         function rollDice() {
             rollButton.disabled = true;
-            resultText.textContent = "波間に運命を委ねる...";
-
-            // 音を安全に再生
-            playWaveSound();
+            resultText.textContent = "運命の鳴き声...";
 
             diceEl.style.transition = 'none';
             diceEl.style.transform = 'rotateX(0deg) rotateY(0deg)';
             
             setTimeout(() => {
+                // ダイスの回転時間を「4秒」に設定
                 diceEl.style.transition = 'transform 4s cubic-bezier(0.1, 0.9, 0.1, 1)';
 
                 const result = Math.floor(Math.random() * 3) + 1;
@@ -282,10 +259,13 @@
                 const finalYAngle = (baseYRotations * 360) + angleMap[result];
                 const finalXAngle = extraXRotations;
 
+                // ダイス回転スタート
                 diceEl.style.transform = `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
 
-                playRealGullSound();
+                // 「ミファミレ、ミファミレ」の鳴き声を再生スタート
+                playGullMelody();
 
+                // 4秒後にダイスが停止し、最後の音の消え際と完全に同時に結果を表示
                 setTimeout(() => {
                     resultText.textContent = `結果：${outcomes[result]}`;
                     rollButton.disabled = false;
