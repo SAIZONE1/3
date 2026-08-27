@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>海の判定ダイス</title>
-
     <style>
+        /* --- 全体のレイアウト（海をイメージした深い青色） --- */
         body {
             margin: 0;
             padding: 0;
@@ -28,68 +28,53 @@
             letter-spacing: 2px;
         }
 
+        /* --- 3Dサイコロ（三角柱）のコンテナ --- */
         .dice-container {
-            width: 220px;
-            height: 160px;
+            width: 240px; /* 画像に合わせて少しサイズ調整 */
+            height: 240px;
             position: relative;
             transform-style: preserve-3d;
             transition: transform 4s cubic-bezier(0.1, 0.9, 0.1, 1);
-            margin-bottom: 50px;
+            margin-bottom: 60px;
         }
 
+        /* --- 三角柱の側面（共通設定） --- */
         .face {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(255, 255, 255, 0.95);
-            border: 2px solid #204060;
-            border-radius: 10px;
+            /* 背景は白にし、影と角丸を削除して画像がそのまま見えるように */
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-weight: bold;
-            color: #204060;
             backface-visibility: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            padding: 10px;
+            /* 画像自体に枠と影があるため、divの装飾は外す */
+            padding: 0;
             box-sizing: border-box;
-            text-align: center;
         }
 
-        .face-1 {
-            background-color: #d9534f;
-            color: white;
-            transform: rotateY(0deg) translateZ(95px);
+        /* --- 各面の画像設定 --- */
+        .face img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* 画像の比率を保って全体を表示 */
+            pointer-events: none; /* クリック判定を無効にする */
         }
 
-        .face-2 {
-            background-color: #e67e22;
-            color: white;
-            transform: rotateY(120deg) translateZ(95px);
+        /* --- 各面の回転位置 --- */
+        .face-±0 { 
+            transform: rotateY(0deg) translateZ(69px); /* 正三角形の計算上のZ位置 */
+        }
+        .face-+1 { 
+            transform: rotateY(120deg) translateZ(69px);
+        }
+        .face--1 { 
+            transform: rotateY(240deg) translateZ(69px);
         }
 
-        .face-3 {
-            background-color: #27ae60;
-            color: white;
-            transform: rotateY(240deg) translateZ(95px);
-        }
-
-        .eval-title {
-            font-size: 1.4rem;
-            margin-bottom: 8px;
-        }
-
-        .eval-desc {
-            font-size: 1.1rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 4px 10px;
-            border-radius: 4px;
-            color: white;
-        }
-
+        /* --- ボタン --- */
         #rollButton {
             padding: 15px 35px;
             font-size: 1.2rem;
@@ -116,656 +101,20 @@
             cursor: not-allowed;
         }
 
+        /* --- 結果表示エリア --- */
         #resultText {
             margin-top: 20px;
             font-size: 1.2rem;
             height: 1.5rem;
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            font-weight: bold;
         }
     </style>
 </head>
-
 <body>
 
     <h1>潮騒の判定</h1>
 
     <div class="dice-container" id="diceContainer">
-
-        <div class="face face-1">
-            <div class="eval-title">評価-1</div>
-            <div class="eval-desc">トラブル</div>
-        </div>
-
-        <div class="face face-2">
-            <div class="eval-title">評価±0</div>
-            <div class="eval-desc">トラブル</div>
-        </div>
-
-        <div class="face face-3">
-            <div class="eval-title">評価+1</div>
-            <div class="eval-desc">回避</div>
-        </div>
-
-    </div>
-
-    <button id="rollButton">海に祈る</button>
-
-    <p id="resultText"></p>
-
-
-<script>
-
-const diceEl = document.getElementById('diceContainer');
-const rollButton = document.getElementById('rollButton');
-const resultText = document.getElementById('resultText');
-
-
-const outcomes = {
-    1: "評価-1 (トラブル)",
-    2: "評価±0 (トラブル)",
-    3: "評価+1 (回避)"
-};
-
-
-let audioCtx = null;
-
-
-/* =========================================================
-   オーディオ初期化
-========================================================= */
-
-function initAudio() {
-
-    if (!audioCtx) {
-
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    }
-
-    if (audioCtx.state === 'suspended') {
-
-        audioCtx.resume();
-
-    }
-
-}
-
-
-/* =========================================================
-   海の波音
-   「低い波」＋「泡」の2層構造
-========================================================= */
-
-function playWaveSound() {
-
-    try {
-
-        initAudio();
-
-        const now = audioCtx.currentTime;
-        const duration = 4.8;
-
-
-        /* -------------------------------------------------
-           ① 大きな波の低い音
-        ------------------------------------------------- */
-
-        const lowBuffer =
-            audioCtx.createBuffer(
-                1,
-                audioCtx.sampleRate * duration,
-                audioCtx.sampleRate
-            );
-
-        const lowData = lowBuffer.getChannelData(0);
-
-
-        for (let i = 0; i < lowData.length; i++) {
-
-            lowData[i] = Math.random() * 2 - 1;
-
-        }
-
-
-        const lowNoise =
-            audioCtx.createBufferSource();
-
-        lowNoise.buffer = lowBuffer;
-
-
-        const lowFilter =
-            audioCtx.createBiquadFilter();
-
-        lowFilter.type = "lowpass";
-
-        lowFilter.frequency.setValueAtTime(
-            120,
-            now
-        );
-
-        lowFilter.frequency.linearRampToValueAtTime(
-            350,
-            now + 1.0
-        );
-
-        lowFilter.frequency.linearRampToValueAtTime(
-            170,
-            now + 2.2
-        );
-
-        lowFilter.frequency.linearRampToValueAtTime(
-            420,
-            now + 3.1
-        );
-
-        lowFilter.frequency.linearRampToValueAtTime(
-            90,
-            now + duration
-        );
-
-
-        const lowGain =
-            audioCtx.createGain();
-
-        lowGain.gain.setValueAtTime(
-            0.01,
-            now
-        );
-
-        lowGain.gain.linearRampToValueAtTime(
-            0.22,
-            now + 0.7
-        );
-
-        lowGain.gain.linearRampToValueAtTime(
-            0.38,
-            now + 1.1
-        );
-
-        lowGain.gain.linearRampToValueAtTime(
-            0.16,
-            now + 2.0
-        );
-
-        lowGain.gain.linearRampToValueAtTime(
-            0.32,
-            now + 3.0
-        );
-
-        lowGain.gain.exponentialRampToValueAtTime(
-            0.01,
-            now + duration
-        );
-
-
-        lowNoise
-            .connect(lowFilter)
-            .connect(lowGain)
-            .connect(audioCtx.destination);
-
-
-        lowNoise.start(now);
-
-        lowNoise.stop(now + duration);
-
-
-
-        /* -------------------------------------------------
-           ② 波が砕ける「シュワー」という高音
-        ------------------------------------------------- */
-
-        const foamBuffer =
-            audioCtx.createBuffer(
-                1,
-                audioCtx.sampleRate * duration,
-                audioCtx.sampleRate
-            );
-
-        const foamData =
-            foamBuffer.getChannelData(0);
-
-
-        for (let i = 0; i < foamData.length; i++) {
-
-            foamData[i] =
-                Math.random() * 2 - 1;
-
-        }
-
-
-        const foamNoise =
-            audioCtx.createBufferSource();
-
-        foamNoise.buffer = foamBuffer;
-
-
-        const foamFilter =
-            audioCtx.createBiquadFilter();
-
-        foamFilter.type = "bandpass";
-
-        foamFilter.frequency.setValueAtTime(
-            700,
-            now
-        );
-
-        foamFilter.frequency.linearRampToValueAtTime(
-            2400,
-            now + 0.9
-        );
-
-        foamFilter.frequency.linearRampToValueAtTime(
-            1100,
-            now + 1.8
-        );
-
-        foamFilter.frequency.linearRampToValueAtTime(
-            2800,
-            now + 2.9
-        );
-
-        foamFilter.frequency.linearRampToValueAtTime(
-            500,
-            now + duration
-        );
-
-
-        foamFilter.Q.value = 0.7;
-
-
-        const foamGain =
-            audioCtx.createGain();
-
-        foamGain.gain.setValueAtTime(
-            0.01,
-            now
-        );
-
-        foamGain.gain.linearRampToValueAtTime(
-            0.16,
-            now + 0.8
-        );
-
-        foamGain.gain.linearRampToValueAtTime(
-            0.04,
-            now + 1.7
-        );
-
-        foamGain.gain.linearRampToValueAtTime(
-            0.19,
-            now + 2.8
-        );
-
-        foamGain.gain.exponentialRampToValueAtTime(
-            0.001,
-            now + duration
-        );
-
-
-        foamNoise
-            .connect(foamFilter)
-            .connect(foamGain)
-            .connect(audioCtx.destination);
-
-
-        foamNoise.start(now);
-
-        foamNoise.stop(now + duration);
-
-
-    } catch(e) {
-
-        console.log(
-            "波音エラー:",
-            e
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   うみねこの鳴き声
-   複数の音を重ねて自然な鳴き声にする
-========================================================= */
-function playRealGullSound() {
-
-    try {
-
-        initAudio();
-
-        const startTime = audioCtx.currentTime;
-
-
-        /* =================================================
-           うみねこの鳴き声
-           高音の「ガッ！」＋「アーーッ」
-        ================================================= */
-
-        function createGullCry(
-            timeOffset,
-            startFreq,
-            peakFreq,
-            endFreq,
-            duration,
-            volume
-        ) {
-
-            const start = startTime + timeOffset;
-
-
-            /* ------------------------------------------------
-               メインの声
-               今までの「アーーッ」
-            ------------------------------------------------ */
-
-            const osc = audioCtx.createOscillator();
-
-            osc.type = "sawtooth";
-
-            osc.frequency.setValueAtTime(
-                startFreq,
-                start
-            );
-
-            osc.frequency.exponentialRampToValueAtTime(
-                peakFreq,
-                start + duration * 0.30
-            );
-
-            osc.frequency.exponentialRampToValueAtTime(
-                endFreq,
-                start + duration
-            );
-
-
-            /* 声を丸くするフィルター */
-
-            const filter =
-                audioCtx.createBiquadFilter();
-
-            filter.type = "bandpass";
-
-            filter.frequency.setValueAtTime(
-                900,
-                start
-            );
-
-            filter.frequency.exponentialRampToValueAtTime(
-                1500,
-                start + duration * 0.35
-            );
-
-            filter.frequency.exponentialRampToValueAtTime(
-                700,
-                start + duration
-            );
-
-            filter.Q.value = 1.4;
-
-
-            /* 音量 */
-
-            const gain =
-                audioCtx.createGain();
-
-            gain.gain.setValueAtTime(
-                0.001,
-                start
-            );
-
-            gain.gain.exponentialRampToValueAtTime(
-                volume,
-                start + 0.035
-            );
-
-            gain.gain.setValueAtTime(
-                volume * 0.85,
-                start + duration * 0.35
-            );
-
-            gain.gain.exponentialRampToValueAtTime(
-                0.001,
-                start + duration
-            );
-
-
-            osc
-                .connect(filter)
-                .connect(gain)
-                .connect(audioCtx.destination);
-
-
-            osc.start(start);
-            osc.stop(start + duration);
-
-
-            /* =================================================
-               「ガッ！」という高音のザラつき
-               出だしだけに追加
-            ================================================= */
-
-            const raspDuration = 0.13;
-
-            const rasp =
-                audioCtx.createOscillator();
-
-            rasp.type = "sawtooth";
-
-
-            /*
-             * 一瞬だけかなり高い音へ
-             */
-
-            rasp.frequency.setValueAtTime(
-                550,
-                start
-            );
-
-            rasp.frequency.exponentialRampToValueAtTime(
-                950,
-                start + 0.045
-            );
-
-            rasp.frequency.exponentialRampToValueAtTime(
-                600,
-                start + raspDuration
-            );
-
-
-            /* 高音のザラつきを強調 */
-
-            const raspFilter =
-                audioCtx.createBiquadFilter();
-
-            raspFilter.type = "highpass";
-
-            raspFilter.frequency.setValueAtTime(
-                650,
-                start
-            );
-
-            raspFilter.frequency.linearRampToValueAtTime(
-                1000,
-                start + 0.05
-            );
-
-
-            /* 「ガッ！」の短い音量 */
-
-            const raspGain =
-                audioCtx.createGain();
-
-            raspGain.gain.setValueAtTime(
-                0.001,
-                start
-            );
-
-            raspGain.gain.exponentialRampToValueAtTime(
-                volume * 0.75,
-                start + 0.018
-            );
-
-            raspGain.gain.exponentialRampToValueAtTime(
-                0.001,
-                start + raspDuration
-            );
-
-
-            rasp
-                .connect(raspFilter)
-                .connect(raspGain)
-                .connect(audioCtx.destination);
-
-
-            rasp.start(start);
-            rasp.stop(start + raspDuration);
-
-        }
-
-
-        /* =================================================
-           1声目
-           「ガッ……アーーッ」
-        ================================================= */
-
-        createGullCry(
-            0.0,
-            380,
-            760,
-            470,
-            0.58,
-            0.14
-        );
-
-
-        /* =================================================
-           2声目
-           「ガッ……アーーーッ」
-        ================================================= */
-
-        createGullCry(
-            0.72,
-            430,
-            900,
-            500,
-            0.72,
-            0.16
-        );
-
-
-    } catch(e) {
-
-        console.log(
-            "うみねこの音エラー:",
-            e
-        );
-
-    }
-
-}
-    
-/* =========================================================
-   サイコロを振る
-========================================================= */
-
-rollButton.addEventListener(
-    'click',
-    rollDice
-);
-
-
-function rollDice() {
-
-    rollButton.disabled = true;
-
-    resultText.textContent =
-        "波間に運命を委ねる...";
-
-
-    /* 波音開始 */
-
-    playWaveSound();
-
-
-    diceEl.style.transition =
-        'none';
-
-    diceEl.style.transform =
-        'rotateX(0deg) rotateY(0deg)';
-
-
-    setTimeout(() => {
-
-        diceEl.style.transition =
-            'transform 4s cubic-bezier(0.1, 0.9, 0.1, 1)';
-
-
-        const result =
-            Math.floor(Math.random() * 3) + 1;
-
-
-        const extraXRotations =
-            (Math.floor(Math.random() * 4) + 7) * 360;
-
-
-        const baseYRotations =
-            10;
-
-
-        const angleMap = {
-
-            1: 0,
-
-            2: -120,
-
-            3: -240
-
-        };
-
-
-        const finalYAngle =
-            (baseYRotations * 360)
-            + angleMap[result];
-
-
-        const finalXAngle =
-            extraXRotations;
-
-
-        diceEl.style.transform =
-            `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
-
-
-        /* うみねこの声 */
-
-        setTimeout(() => {
-
-            playRealGullSound();
-
-        }, 2700);
-
-
-        /* 結果 */
-
-        setTimeout(() => {
-
-            resultText.textContent =
-                `結果：${outcomes[result]}`;
-
-
-            rollButton.disabled =
-                false;
-
-        }, 4000);
-
-
-    }, 50);
-
-}
-
-</script>
-
-</body>
-</html>
+        <div class="face face-±0">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAYAAABQH/MeAAAABHNCSVQICAgIfAhkiAAAIABJREFUeJzsvXmUXNl1Hvgnc6/uXdVX3V193bM9Zk84jGc4xGGEIwmDEEYYhDAJIYRIYRJCCNHEJoRIYhNCJJGIJYxIQoiEJEQikkgkkUhIIpFIJSKJRGIxI/FgxmMvM9ndXf3q1N773vdW7y342xP+X7H/7/W79/v53fN7z/e5v/f7vN/n/f7vN3n/f7vN3n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/f7vN/n/
