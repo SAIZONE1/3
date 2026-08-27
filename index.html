@@ -219,10 +219,44 @@ function playRealGullSound() {
 
         const startTime = audioCtx.currentTime;
 
+        /*
+         * 鳴き声全体
+         *
+         * 「ガッ！アーーッ、ガッ！アーーーッ」
+         */
+
+        const gullTotalDuration = 1.20;
+
 
         /* =================================================
-           うみねこの鳴き声
-           高音の「ガッ！」＋「アーーッ」
+           ノイズバッファ
+        ================================================= */
+
+        function makeNoiseBuffer(duration) {
+
+            const buffer =
+                audioCtx.createBuffer(
+                    1,
+                    audioCtx.sampleRate * duration,
+                    audioCtx.sampleRate
+                );
+
+            const data =
+                buffer.getChannelData(0);
+
+            for (let i = 0; i < data.length; i++) {
+
+                data[i] =
+                    Math.random() * 2 - 1;
+
+            }
+
+            return buffer;
+        }
+
+
+        /* =================================================
+           1声を作る
         ================================================= */
 
         function createGullCry(
@@ -234,101 +268,155 @@ function playRealGullSound() {
             volume
         ) {
 
-            const start = startTime + timeOffset;
+            const start =
+                startTime + timeOffset;
 
 
-            /* ------------------------------------------------
-               メインの声
-               今までの「アーーッ」
-            ------------------------------------------------ */
+            /* =================================================
+               ① メインの「アーーッ」
+            ================================================= */
 
-            const osc = audioCtx.createOscillator();
+            const voice =
+                audioCtx.createOscillator();
 
-            osc.type = "sawtooth";
+            voice.type = "sawtooth";
 
-            osc.frequency.setValueAtTime(
+
+            voice.frequency.setValueAtTime(
                 startFreq,
                 start
             );
 
-            osc.frequency.exponentialRampToValueAtTime(
+            voice.frequency.exponentialRampToValueAtTime(
                 peakFreq,
                 start + duration * 0.30
             );
 
-            osc.frequency.exponentialRampToValueAtTime(
+            voice.frequency.exponentialRampToValueAtTime(
                 endFreq,
                 start + duration
             );
 
 
-            /* 声を丸くするフィルター */
-
-            const filter =
+            const voiceFilter =
                 audioCtx.createBiquadFilter();
 
-            filter.type = "bandpass";
+            voiceFilter.type = "bandpass";
 
-            filter.frequency.setValueAtTime(
-                900,
+            voiceFilter.frequency.setValueAtTime(
+                600,
                 start
             );
 
-            filter.frequency.exponentialRampToValueAtTime(
-                1500,
+            voiceFilter.frequency.exponentialRampToValueAtTime(
+                1100,
                 start + duration * 0.35
             );
 
-            filter.frequency.exponentialRampToValueAtTime(
-                700,
+            voiceFilter.frequency.exponentialRampToValueAtTime(
+                550,
                 start + duration
             );
 
-            filter.Q.value = 1.4;
+            voiceFilter.Q.value = 1.1;
 
 
-            /* 音量 */
-
-            const gain =
+            const voiceGain =
                 audioCtx.createGain();
 
-            gain.gain.setValueAtTime(
+            voiceGain.gain.setValueAtTime(
                 0.001,
                 start
             );
 
-            gain.gain.exponentialRampToValueAtTime(
+            voiceGain.gain.exponentialRampToValueAtTime(
                 volume,
-                start + 0.035
+                start + 0.045
             );
 
-            gain.gain.setValueAtTime(
-                volume * 0.85,
-                start + duration * 0.35
+            voiceGain.gain.setValueAtTime(
+                volume * 0.9,
+                start + duration * 0.25
             );
 
-            gain.gain.exponentialRampToValueAtTime(
+            voiceGain.gain.linearRampToValueAtTime(
+                volume * 0.78,
+                start + duration * 0.55
+            );
+
+            voiceGain.gain.exponentialRampToValueAtTime(
                 0.001,
                 start + duration
             );
 
 
-            osc
-                .connect(filter)
-                .connect(gain)
+            voice
+                .connect(voiceFilter)
+                .connect(voiceGain)
                 .connect(audioCtx.destination);
 
 
-            osc.start(start);
-            osc.stop(start + duration);
+            voice.start(start);
+            voice.stop(start + duration);
 
 
             /* =================================================
-               「ガッ！」という高音のザラつき
-               出だしだけに追加
+               ② 「アー」の倍音
             ================================================= */
 
-            const raspDuration = 0.13;
+            const harmonic =
+                audioCtx.createOscillator();
+
+            harmonic.type = "triangle";
+
+
+            harmonic.frequency.setValueAtTime(
+                startFreq * 2,
+                start
+            );
+
+            harmonic.frequency.exponentialRampToValueAtTime(
+                peakFreq * 2,
+                start + duration * 0.30
+            );
+
+            harmonic.frequency.exponentialRampToValueAtTime(
+                endFreq * 2,
+                start + duration
+            );
+
+
+            const harmonicGain =
+                audioCtx.createGain();
+
+            harmonicGain.gain.setValueAtTime(
+                0.001,
+                start
+            );
+
+            harmonicGain.gain.exponentialRampToValueAtTime(
+                volume * 0.20,
+                start + 0.04
+            );
+
+            harmonicGain.gain.exponentialRampToValueAtTime(
+                0.001,
+                start + duration
+            );
+
+
+            harmonic
+                .connect(harmonicGain)
+                .connect(audioCtx.destination);
+
+
+            harmonic.start(start);
+            harmonic.stop(start + duration);
+
+
+            /* =================================================
+               ③ 低く太い「ガッ！」
+            ================================================= */
 
             const rasp =
                 audioCtx.createOscillator();
@@ -337,44 +425,53 @@ function playRealGullSound() {
 
 
             /*
-             * 一瞬だけかなり高い音へ
+             * 以前よりかなり低くする
+             *
+             * 350Hz
+             *   ↓
+             * 650Hz
+             *   ↓
+             * 420Hz
              */
 
             rasp.frequency.setValueAtTime(
-                550,
+                350,
                 start
             );
 
             rasp.frequency.exponentialRampToValueAtTime(
-                950,
+                650,
                 start + 0.045
             );
 
             rasp.frequency.exponentialRampToValueAtTime(
-                600,
-                start + raspDuration
+                420,
+                start + 0.12
             );
 
 
-            /* 高音のザラつきを強調 */
+            /* 「ガ」の太い響き */
 
             const raspFilter =
                 audioCtx.createBiquadFilter();
 
-            raspFilter.type = "highpass";
+            raspFilter.type = "lowpass";
 
             raspFilter.frequency.setValueAtTime(
-                500,
+                550,
                 start
             );
 
-            raspFilter.frequency.linearRampToValueAtTime(
-                800,
-                start + 0.05
+            raspFilter.frequency.exponentialRampToValueAtTime(
+                850,
+                start + 0.03
             );
 
+            raspFilter.frequency.exponentialRampToValueAtTime(
+                430,
+                start + 0.12
+            );
 
-            /* 「ガッ！」の短い音量 */
 
             const raspGain =
                 audioCtx.createGain();
@@ -385,13 +482,13 @@ function playRealGullSound() {
             );
 
             raspGain.gain.exponentialRampToValueAtTime(
-                volume * 0.75,
-                start + 0.018
+                volume * 1.05,
+                start + 0.012
             );
 
             raspGain.gain.exponentialRampToValueAtTime(
                 0.001,
-                start + raspDuration
+                start + 0.12
             );
 
 
@@ -402,18 +499,150 @@ function playRealGullSound() {
 
 
             rasp.start(start);
-            rasp.stop(start + raspDuration);
+            rasp.stop(start + 0.13);
+
+
+            /* =================================================
+               ④ 「ガッ」のざらつき
+            ================================================= */
+
+            const raspNoise =
+                audioCtx.createBufferSource();
+
+            raspNoise.buffer =
+                makeNoiseBuffer(0.13);
+
+
+            const noiseFilter =
+                audioCtx.createBiquadFilter();
+
+            noiseFilter.type = "lowpass";
+
+            noiseFilter.frequency.setValueAtTime(
+                650,
+                start
+            );
+
+            noiseFilter.frequency.exponentialRampToValueAtTime(
+                400,
+                start + 0.08
+            );
+
+
+            const noiseGain =
+                audioCtx.createGain();
+
+            noiseGain.gain.setValueAtTime(
+                0.001,
+                start
+            );
+
+            noiseGain.gain.exponentialRampToValueAtTime(
+                volume * 0.75,
+                start + 0.012
+            );
+
+            noiseGain.gain.exponentialRampToValueAtTime(
+                0.001,
+                start + 0.10
+            );
+
+
+            raspNoise
+                .connect(noiseFilter)
+                .connect(noiseGain)
+                .connect(audioCtx.destination);
+
+
+            raspNoise.start(start);
+            raspNoise.stop(start + 0.13);
+
+
+            /* =================================================
+               ⑤ 「クッ」という一瞬の喉の引っ掛かり
+            ================================================= */
+
+            const throat =
+                audioCtx.createOscillator();
+
+            throat.type = "square";
+
+
+            throat.frequency.setValueAtTime(
+                280,
+                start
+            );
+
+            throat.frequency.exponentialRampToValueAtTime(
+                430,
+                start + 0.025
+            );
+
+            throat.frequency.exponentialRampToValueAtTime(
+                250,
+                start + 0.065
+            );
+
+
+            const throatFilter =
+                audioCtx.createBiquadFilter();
+
+            throatFilter.type = "lowpass";
+
+            throatFilter.frequency.setValueAtTime(
+                500,
+                start
+            );
+
+            throatFilter.frequency.exponentialRampToValueAtTime(
+                700,
+                start + 0.02
+            );
+
+            throatFilter.frequency.exponentialRampToValueAtTime(
+                300,
+                start + 0.07
+            );
+
+
+            const throatGain =
+                audioCtx.createGain();
+
+            throatGain.gain.setValueAtTime(
+                0.001,
+                start
+            );
+
+            throatGain.gain.exponentialRampToValueAtTime(
+                volume * 0.45,
+                start + 0.008
+            );
+
+            throatGain.gain.exponentialRampToValueAtTime(
+                0.001,
+                start + 0.07
+            );
+
+
+            throat
+                .connect(throatFilter)
+                .connect(throatGain)
+                .connect(audioCtx.destination);
+
+
+            throat.start(start);
+            throat.stop(start + 0.08);
 
         }
 
 
         /* =================================================
            1声目
-           「ガッ……アーーッ」
+           「ガッ！アーーッ」
         ================================================= */
 
         createGullCry(
-            0.0,
+            0.00,
             380,
             760,
             470,
@@ -424,17 +653,26 @@ function playRealGullSound() {
 
         /* =================================================
            2声目
-           「ガッ……アーーーッ」
+           「ガッ！アーーーッ」
+           
+           1声目との間隔を短く
         ================================================= */
 
         createGullCry(
+            0.48,
+            410,
+            830,
+            480,
             0.72,
-            430,
-            900,
-            500,
-            0.72,
-            0.16
+            0.15
         );
+
+
+        /*
+         * 鳴き声全体の長さ
+         */
+
+        return gullTotalDuration;
 
 
     } catch(e) {
@@ -444,10 +682,11 @@ function playRealGullSound() {
             e
         );
 
+        return 1.20;
+
     }
 
 }
-
         rollButton.addEventListener('click', rollDice);
 
         function rollDice() {
