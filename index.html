@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>海の判定ダイス</title>
     <style>
-        /* --- 全体のレイアウト（海をイメージした深い青色） --- */
         body {
             margin: 0;
             padding: 0;
@@ -28,7 +27,6 @@
             letter-spacing: 2px;
         }
 
-        /* --- 3Dサイコロ（三角柱）のコンテナ --- */
         .dice-container {
             width: 240px;
             height: 240px;
@@ -38,7 +36,6 @@
             margin-bottom: 60px;
         }
 
-        /* --- 三角柱の側面（共通設定） --- */
         .face {
             position: absolute;
             top: 0;
@@ -53,7 +50,6 @@
             box-sizing: border-box;
         }
 
-        /* --- 各面の画像設定 --- */
         .face img {
             width: 100%;
             height: 100%;
@@ -61,7 +57,6 @@
             pointer-events: none;
         }
 
-        /* --- 各面の回転位置 --- */
         .face-0 { 
             transform: rotateY(0deg) translateZ(69px); 
         }
@@ -72,7 +67,6 @@
             transform: rotateY(240deg) translateZ(69px);
         }
 
-        /* --- ボタン --- */
         #rollButton {
             padding: 15px 35px;
             font-size: 1.2rem;
@@ -99,7 +93,6 @@
             cursor: not-allowed;
         }
 
-        /* --- 結果表示エリア --- */
         #resultText {
             margin-top: 20px;
             font-size: 1.2rem;
@@ -113,17 +106,13 @@
 
     <h1>潮騒の判定</h1>
 
-    <!-- 3Dサイコロの構造（3面） -->
     <div class="dice-container" id="diceContainer">
-        <!-- 面1: face0.png (±0 トラブル) -->
         <div class="face face-0">
             <img src="face0.png" alt="±0 トラブル">
         </div>
-        <!-- 面2: face1.png (+1 回避) -->
         <div class="face face-1">
             <img src="face1.png" alt="+1 回避">
         </div>
-        <!-- 面3: face-1.png (-1 トラブル) -->
         <div class="face face-minus1">
             <img src="face-1.png" alt="-1 トラブル">
         </div>
@@ -154,84 +143,121 @@
             }
         }
 
-        // --- 波の音 ---
         function playWaveSound() {
             try {
                 initAudio();
-                const duration = 4.0;
-                const bufferSize = audioCtx.sampleRate * duration;
-                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const data = buffer.getChannelData(0);
+                const now = audioCtx.currentTime;
+                const duration = 4.8;
 
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
+                const lowBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
+                const lowData = lowBuffer.getChannelData(0);
+                for (let i = 0; i < lowData.length; i++) {
+                    lowData[i] = Math.random() * 2 - 1;
                 }
 
-                const noise = audioCtx.createBufferSource();
-                noise.buffer = buffer;
+                const lowNoise = audioCtx.createBufferSource();
+                lowNoise.buffer = lowBuffer;
 
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                
-                filter.frequency.setValueAtTime(300, audioCtx.currentTime);
-                filter.frequency.linearRampToValueAtTime(1400, audioCtx.currentTime + 0.8);
-                filter.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 1.8);
-                filter.frequency.linearRampToValueAtTime(1500, audioCtx.currentTime + 2.6);
-                filter.frequency.linearRampToValueAtTime(250, audioCtx.currentTime + 4.0);
+                const lowFilter = audioCtx.createBiquadFilter();
+                lowFilter.type = "lowpass";
+                lowFilter.frequency.setValueAtTime(120, now);
+                lowFilter.frequency.linearRampToValueAtTime(350, now + 1.0);
+                lowFilter.frequency.linearRampToValueAtTime(170, now + 2.2);
+                lowFilter.frequency.linearRampToValueAtTime(420, now + 3.1);
+                lowFilter.frequency.linearRampToValueAtTime(90, now + duration);
 
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.setValueAtTime(0.45, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 1.2);
-                gainNode.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 2.2);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                const lowGain = audioCtx.createGain();
+                lowGain.gain.setValueAtTime(0.01, now);
+                lowGain.gain.linearRampToValueAtTime(0.22, now + 0.7);
+                lowGain.gain.linearRampToValueAtTime(0.38, now + 1.1);
+                lowGain.gain.linearRampToValueAtTime(0.16, now + 2.0);
+                lowGain.gain.linearRampToValueAtTime(0.32, now + 3.0);
+                lowGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
 
-                noise.connect(filter);
-                filter.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
+                lowNoise.connect(lowFilter).connect(lowGain).connect(audioCtx.destination);
+                lowNoise.start(now);
+                lowNoise.stop(now + duration);
 
-                noise.start();
-                noise.stop(audioCtx.currentTime + duration);
+                const foamBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
+                const foamData = foamBuffer.getChannelData(0);
+                for (let i = 0; i < foamData.length; i++) {
+                    foamData[i] = Math.random() * 2 - 1;
+                }
+
+                const foamNoise = audioCtx.createBufferSource();
+                foamNoise.buffer = foamBuffer;
+
+                const foamFilter = audioCtx.createBiquadFilter();
+                foamFilter.type = "bandpass";
+                foamFilter.frequency.setValueAtTime(700, now);
+                foamFilter.frequency.linearRampToValueAtTime(2400, now + 0.9);
+                foamFilter.frequency.linearRampToValueAtTime(1100, now + 1.8);
+                foamFilter.frequency.linearRampToValueAtTime(2800, now + 2.9);
+                foamFilter.frequency.linearRampToValueAtTime(500, now + duration);
+                foamFilter.Q.value = 0.7;
+
+                const foamGain = audioCtx.createGain();
+                foamGain.gain.setValueAtTime(0.01, now);
+                foamGain.gain.linearRampToValueAtTime(0.16, now + 0.8);
+                foamGain.gain.linearRampToValueAtTime(0.04, now + 1.7);
+                foamGain.gain.linearRampToValueAtTime(0.19, now + 2.8);
+                foamGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                foamNoise.connect(foamFilter).connect(foamGain).connect(audioCtx.destination);
+                foamNoise.start(now);
+                foamNoise.stop(now + duration);
             } catch(e) {
-                console.log("音の再生でエラー:", e);
+                console.log("波音エラー:", e);
             }
         }
 
-        // --- うみねこの鳴き声 ---
         function playRealGullSound() {
             try {
                 initAudio();
                 const startTime = audioCtx.currentTime;
 
-                function createCaw(timeOffset, pitch1, pitch2, duration) {
+                function createGullCall(timeOffset, startFreq, peakFreq, endFreq, duration) {
+                    const start = startTime + timeOffset;
+
                     const osc = audioCtx.createOscillator();
+                    osc.type = "triangle";
+                    osc.frequency.setValueAtTime(startFreq, start);
+                    osc.frequency.exponentialRampToValueAtTime(peakFreq, start + duration * 0.35);
+                    osc.frequency.exponentialRampToValueAtTime(endFreq, start + duration);
+
+                    const harmonic = audioCtx.createOscillator();
+                    harmonic.type = "sine";
+                    harmonic.frequency.setValueAtTime(startFreq * 2.01, start);
+                    harmonic.frequency.exponentialRampToValueAtTime(peakFreq * 2.01, start + duration * 0.35);
+                    harmonic.frequency.exponentialRampToValueAtTime(endFreq * 2, start + duration);
+
                     const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.001, start);
+                    gain.gain.linearRampToValueAtTime(0.12, start + 0.04);
+                    gain.gain.linearRampToValueAtTime(0.09, start + duration * 0.55);
+                    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
                     const filter = audioCtx.createBiquadFilter();
-
-                    osc.type = 'square';
-                    filter.type = 'bandpass';
-                    filter.frequency.setValueAtTime(900, startTime + timeOffset);
-                    filter.Q.setValueAtTime(3, startTime + timeOffset);
-
-                    osc.frequency.setValueAtTime(pitch1, startTime + timeOffset);
-                    filter.frequency.linearRampToValueAtTime && osc.frequency.linearRampToValueAtTime(pitch2, startTime + timeOffset + (duration * 0.4));
-                    osc.frequency.linearRampToValueAtTime(pitch1 * 0.8, startTime + timeOffset + duration);
-
-                    gain.gain.setValueAtTime(0.01, startTime + timeOffset);
-                    gain.gain.linearRampToValueAtTime(0.08, startTime + timeOffset + 0.05);
-                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + timeOffset + duration);
+                    filter.type = "bandpass";
+                    filter.frequency.setValueAtTime(1200, start);
+                    filter.frequency.linearRampToValueAtTime(1900, start + duration * 0.4);
+                    filter.frequency.linearRampToValueAtTime(850, start + duration);
+                    filter.Q.value = 2.5;
 
                     osc.connect(filter);
-                    filter.connect(gain);
-                    gain.connect(audioCtx.destination);
+                    harmonic.connect(filter);
+                    filter.connect(gain).connect(audioCtx.destination);
 
-                    osc.start(startTime + timeOffset);
-                    osc.stop(startTime + timeOffset + duration);
+                    osc.start(start);
+                    harmonic.start(start);
+                    osc.stop(start + duration);
+                    harmonic.stop(start + duration);
                 }
 
-                createCaw(2.6, 650, 950, 0.35);
-                createCaw(3.1, 800, 1150, 0.85);
+                createGullCall(0.0, 620, 1050, 520, 0.48);
+                createGullCall(0.42, 720, 1250, 560, 0.72);
             } catch(e) {
-                console.log("鳴き声のエラー:", e);
+                console.log("うみねこの音エラー:", e);
             }
         }
 
@@ -264,7 +290,9 @@
 
                 diceEl.style.transform = `rotateX(${finalXAngle}deg) rotateY(${finalYAngle}deg)`;
 
-                playRealGullSound();
+                setTimeout(() => {
+                    playRealGullSound();
+                }, 2700);
 
                 setTimeout(() => {
                     resultText.textContent = `結果：${outcomes[result]}`;
